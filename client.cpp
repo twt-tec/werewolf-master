@@ -181,7 +181,7 @@ bool check() {
 }
 int main() {
 	system("chcp 936"); system("cls");
-	std::cout << "欢迎使用谭炜谭狼人杀大师！\n等待其它玩家...\n";
+	std::cout << "欢迎使用谭炜谭狼人杀大师（v2.0 stable）！\n等待其它玩家...\n";
 	cs.init(1234);
 	std::string c = cs.rec();
 	system("cls");

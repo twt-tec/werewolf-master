@@ -44,6 +44,7 @@ bool check();
 int main() {
 	system("chcp 936"); system("cls"); 
 	srand(time(0));
+	std::cout << "(v2.0 stable)\n";
 	for (int i = 0; i < con.size(); i++) std::cout << con[i] << ((i == con.size()-1) ?"": ", ");
 	std::cout << "?\n> ";
 	for (int i = 0; i < con.size(); i++) {
@@ -56,7 +57,7 @@ int main() {
 	std::cout << "Waiting for players...\n";
 	cs.init(1234, B);
 	system("cls");
-	std::cout << "Game is running!";
+	std::cout << "Game is running!(v2.0 stable)";
 	tele(all, to_string(B));
 	for (int i = 1; i <= B; i++) cs.sent(i, to_string(i));
 	distri();
@@ -143,7 +144,7 @@ int vote(twt a, dwd<void(twt)> pk = defPk, dwd<bool(int)> ck = defCk, dwd<twt(tw
 	std::map<int, int> mp;
 	twt cur = _vote(a, mp, ck, pro);
 	while (cur.size() > 1) {
-		pk(cur);
+//		pk(cur);
 		tele(a, std::string("请在这些平票玩家中重新投票（不能弃票）： ") + to_string(cur));
 		mp.clear();
 		cur = _vote(a, mp, [&ck](int x) { return ck(x) && x; }, pro);
@@ -224,7 +225,6 @@ void doWitch(int no) {
 		int k = vote(witches, defPk, defCk, [](twt &cnt) {
 			return twt(1, std::max_element(cnt.begin(), cnt.end())-cnt.begin()); 
 		});
-//		std::cout << "hsshsdfhfsaf " << k << '\n';
 		if (k != 0) tmpDie.insert({k, _Witch});
 	}
 	be = 0;
