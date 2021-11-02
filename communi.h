@@ -5,12 +5,19 @@
 using namespace std;
 const int ERR = 3;
 std::ofstream fout;
+int to_int(std::string x) {
+	for (char c : x) if (c < '0' || c > '9') return -1;
+	int an = 0;
+	for (char c : x) an = an * 10 + c - '0';
+	return an;
+}
 struct twt_server {
 	int send_len = 0;
 	int recv_len = 0;
 	int len = 0;
-	char send_buf[10005];
-	char recv_buf[10005];
+	char send_buf[1200];
+	char recv_buf[1200];
+	bool ok[1000];
 	int B = 0;
 	SOCKET s_server;
 	SOCKET s_accept[1005];
@@ -27,7 +34,10 @@ struct twt_server {
 	        WSACleanup();
 	    } 
 	}
+	void contect();
+	void antiAd(int noAna);
 	int init(int x, int y) {
+		for (int i = 0; i < 1000; i++) ok[i] = 0;
 		B = y;
 		fout.open("log.txt");
 	    initialization();
@@ -47,17 +57,7 @@ struct twt_server {
 	        WSACleanup();
 	    } 
 	    len = sizeof(SOCKADDR);
-	    for (int i = 1; i <= B; i++) {
-	    	s_accept[i] = accept(s_server, (SOCKADDR *)&accept_addr, &len);
-	    	system("cls");
-	    	std::cout << i << '/' << B;
-		    if (s_accept[i] == SOCKET_ERROR) {
-		        cout << "ERR" << endl;
-				exit(0);
-		        WSACleanup();
-		        return 0;
-		    }
-		}
+	    contect();
 	    return 0;
 	}
 	void close() {
@@ -65,10 +65,33 @@ struct twt_server {
 	    closesocket(s_accept[0]);
 	    WSACleanup();
 	}
+	std::string _rec(int x, int len) {
+		recv_len = recv(s_accept[x], recv_buf, len, 0);
+	    if (recv_len < 0) {
+	        cout << "lose connect from " << x << endl;
+	        fout << "lose connect from " << x << endl;
+	        exit(0);
+			return "ERR";
+	    } else {
+	        std::string an = recv_buf;
+	        return an;
+	    }
+	}
+	int _sent(int x, std::string s, int len) {
+		if (ok[x]) return 0;
+	    int send_len = send(s_accept[x], s.c_str(), len, 0);
+	    if (send_len < 0) {
+	        ok[x] = 1;
+	        return 1;
+	    }
+	    return 0;
+	}
 	std::string rec(int x) {
 		std::cout << "waiting rec from " << x << '\n';
 		fout << "waiting rec from " << x << '\n';
-		recv_len = recv(s_accept[x], recv_buf, 100, 0);
+		int l = to_int(_rec(x, 5));
+		recv_len = recv(s_accept[x], recv_buf, l, 0);
+		recv_buf[recv_len]=0;
 	    if (recv_len < 0) {
 	        cout << "lose connect from " << x << endl;
 	        fout << "lose connect from " << x << endl;
@@ -82,14 +105,16 @@ struct twt_server {
 	    }
 	}
 	int sent(int x, std::string s) {
-	    int send_len = send(s_accept[x], s.c_str(), 100, 0);
+		if (ok[x]) return 0;
+		_sent(x, to_string(s.size()), 5);
+	    int send_len = send(s_accept[x], s.c_str(), s.size(), 0);
 	    std::cout << "sending to " << x << " " << s << '\n';
 	    fout << "sending to " << x << " " << s << '\n';
 	    if (send_len < 0) {
 	        cout << "lose connect from " << x << endl;
 	        fout << "lose connect from " << x << endl;
-	        exit(0);
-	        return ERR;
+	        ok[x] = 1;
+	        return 1;
 	    }
 	    return 0;
 	}
@@ -97,8 +122,8 @@ struct twt_server {
 struct twt_client {
 	int send_len = 0;
 	int recv_len = 0;
-	char send_buf[10000];
-	char recv_buf[10000];
+	char send_buf[1200];
+	char recv_buf[1200];
 	SOCKET s_server;
 	SOCKADDR_IN server_addr;
 	void initialization() {
@@ -110,12 +135,10 @@ struct twt_client {
 			WSACleanup();
 		}
 	}
-	int init(int x) {
+	int init(int x, std::string ip = "no") {
 		initialization();
 		server_addr.sin_family = AF_INET;
-		std::string ip;
-		std::cout << "ip?\n> ";
-		std::cin >> ip;
+		if (ip == "no")	std::cout << "ip?\n> ", std::cin >> ip;
 		if (ip == "o") ip = "127.0.0.1";
 		if (ip.size() <= 3) ip = std::string("10.176.20.") + ip;
 		server_addr.sin_addr.S_un.S_addr = inet_addr(ip.c_str());
@@ -126,12 +149,9 @@ struct twt_client {
 		}
 		return 0;
 	}
-	std::string rec() {
-		recv_len = recv(s_server, recv_buf, 100, 0);
+	std::string _rec(int len) {
+		recv_len = recv(s_server, recv_buf, len, 0);
 		if (recv_len < 0) {
-			std::cout << "连接丢失\n";
-			system("pause");
-			exit(0);
 			return "ERR";
 		}
 		else {
@@ -139,13 +159,43 @@ struct twt_client {
 			return an;
 		}
 	}
-	void sent(std::string s) {
-		send_len = send(s_server, s.c_str(), 100, 0);
+	bool _sent(std::string s, int len) {
+		send_len = send(s_server, s.c_str(), len, 0);
 		if (send_len < 0) {
-			std::cout << "连接丢失\n";
-			system("pause");
-			exit(0);
+//			exit(0);
+			return 0;
 		} 
+		return 1;
+	}
+	std::string rec(bool op = 0) {
+		int l = to_int(_rec(5));
+		recv_len = recv(s_server, recv_buf, l, 0);
+		recv_buf[recv_len]=0;
+		if (recv_len < 0) {
+			if (!op) {
+				std::cout << "连接丢失\n";
+				system("pause");
+				exit(0);
+			}
+			return "ERR";
+		}
+		else {
+			std::string an = recv_buf;
+			return an;
+		}
+	}
+	bool sent(std::string s, bool op = 0) {
+		_sent(to_string(s.size()), 5);
+		send_len = send(s_server, s.c_str(), s.size(), 0);
+		if (send_len < 0) {
+			if (!op) {
+				std::cout << "连接丢失\n";
+				system("pause");
+			}
+//			exit(0);
+			return 0;
+		} 
+		return 1;
 	}
 	
 };
